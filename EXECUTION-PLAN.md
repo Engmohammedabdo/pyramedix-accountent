@@ -5,26 +5,28 @@
 ---
 
 ## Phase 1: 🗄️ Database Schema Extension
-**Status:** ⏳ NEXT
+**Status:** ✅ COMPLETED (25 Feb 2026)
 **Agent:** Database Architect (Gemini 3.1 Pro)
 
 ### المهام:
-- [ ] كتابة SQL للجداول الجديدة:
-  - [ ] `pyra_expense_categories` — تصنيفات ديناميكية
-  - [ ] `pyra_expenses` — المصاريف
-  - [ ] `pyra_cards` — بطاقات البنك
-  - [ ] `pyra_subscriptions` — الاشتراكات
-  - [ ] `pyra_contracts` — العقود
-- [ ] بناء Views جديدة للداشبورد المالي:
-  - [ ] `v_financial_overview` — ملخص مالي شامل
-  - [ ] `v_monthly_revenue` — الإيرادات الشهرية
-  - [ ] `v_expense_breakdown` — تفصيل المصاريف
-  - [ ] `v_upcoming_subscriptions` — اشتراكات قادمة
-  - [ ] `v_overdue_payments` — مدفوعات متأخرة
-- [ ] بناء RPC functions للتقارير
-- [ ] ⚠️ **ما نمس أي جدول موجود**
-- [ ] **Output:** `database/financial-schema.sql`
-- [ ] **✅ Mohammed approval → execute SQL**
+- [x] كتابة SQL للجداول الجديدة:
+  - [x] `pyra_expense_categories` — تصنيفات ديناميكية (5 default categories)
+  - [x] `pyra_expenses` — المصاريف
+  - [x] `pyra_cards` — بطاقات البنك
+  - [x] `pyra_subscriptions` — الاشتراكات
+  - [x] `pyra_contracts` — العقود (with GENERATED remaining_amount)
+- [x] بناء Views جديدة للداشبورد المالي:
+  - [x] `v_financial_overview` — ملخص مالي شامل (MTD/YTD)
+  - [x] `v_monthly_revenue` — الإيرادات الشهرية
+  - [x] `v_expense_breakdown` — تفصيل المصاريف
+  - [x] `v_upcoming_subscriptions` — اشتراكات قادمة (7 days)
+  - [x] `v_overdue_payments` — مدفوعات متأخرة
+  - [x] `v_client_financial_summary` — ملخص مالي لكل عميل
+- [x] بناء RPC functions: `get_revenue_by_period`, `get_expense_by_period`
+- [x] ⚠️ **ما مسينا أي جدول موجود** ✅
+- [x] 17 indexes, RLS policies, auto-updated_at triggers
+- [x] **Output:** `database/financial-schema.sql`
+- [x] **✅ Executed on Supabase — all verified**
 
 ---
 

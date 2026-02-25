@@ -1,7 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useLocale } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   DollarSign,
   TrendingDown,
@@ -9,12 +8,17 @@ import {
   Clock,
   ArrowUpRight,
   ArrowDownRight,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ChartWrapper } from "@/components/dashboard/chart-wrapper";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
+import { useDashboardData } from "@/lib/hooks/use-dashboard-data";
+import { useMonthlyRevenue } from "@/lib/hooks/use-monthly-revenue";
 import {
   BarChart,
   Bar,
@@ -28,46 +32,54 @@ import {
   Cell,
 } from "recharts";
 
-const revenueData = [
-  { month: "Jan", revenue: 42000, expenses: 28000 },
-  { month: "Feb", revenue: 55000, expenses: 31000 },
-  { month: "Mar", revenue: 48000, expenses: 26000 },
-  { month: "Apr", revenue: 61000, expenses: 33000 },
-  { month: "May", revenue: 52000, expenses: 29000 },
-  { month: "Jun", revenue: 67000, expenses: 35000 },
-];
+const EXPENSE_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6"];
 
-const expenseBreakdown = [
-  { name: "Subscriptions", value: 8500, color: "#3B82F6" },
-  { name: "Salaries", value: 15000, color: "#10B981" },
-  { name: "Marketing", value: 6200, color: "#F59E0B" },
-  { name: "Office", value: 3800, color: "#EF4444" },
-  { name: "Tools", value: 2500, color: "#8B5CF6" },
-];
-
-const recentTransactions = [
-  { id: 1, client: "Injazat Real Estate", amount: 15000, type: "income", date: "2026-02-20", status: "paid" },
-  { id: 2, client: "Adobe Creative Cloud", amount: -1200, type: "expense", date: "2026-02-18", status: "paid" },
-  { id: 3, client: "Elite Life Clinic", amount: 8500, type: "income", date: "2026-02-15", status: "paid" },
-  { id: 4, client: "AWS Hosting", amount: -450, type: "expense", date: "2026-02-14", status: "paid" },
-  { id: 5, client: "Dubai Marina Restaurant", amount: 12000, type: "income", date: "2026-02-12", status: "pending" },
-];
-
-const upcomingPayments = [
-  { name: "Figma Pro", amount: 450, dueDate: "2026-03-01", type: "subscription" },
-  { name: "OpenAI API", amount: 320, dueDate: "2026-03-01", type: "subscription" },
-  { name: "Office Rent", amount: 8000, dueDate: "2026-03-05", type: "expense" },
-  { name: "Coolify Server", amount: 180, dueDate: "2026-03-10", type: "subscription" },
-];
-
-const overduePayments = [
-  { client: "Al Noor Contracting", amount: 22000, dueDate: "2026-02-10", daysOverdue: 15 },
-  { client: "Gulf Media Group", amount: 7500, dueDate: "2026-02-15", daysOverdue: 10 },
-];
+const MONTH_NAMES_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_NAMES_AR = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
   const locale = useLocale();
+  const { loading, overview, expenseBreakdown, upcomingSubscriptions, overduePayments } = useDashboardData();
+  const { loading: revenueLoading, data: monthlyRevenue } = useMonthlyRevenue();
+
+  const localeStr = locale === "ar" ? "ar-AE" : "en-AE";
+  const monthNames = locale === "ar" ? MONTH_NAMES_AR : MONTH_NAMES_EN;
+
+  if (loading) return <DashboardSkeleton />;
+
+  // Format revenue data for chart
+  const revenueChartData = monthlyRevenue.length > 0
+    ? monthlyRevenue.map((m) => ({
+        month: monthNames[(Number(m.month) || 1) - 1],
+        revenue: Number(m.total_paid) || 0,
+        invoiced: Number(m.total_invoiced) || 0,
+      }))
+    : MONTH_NAMES_EN.slice(0, 6).map((m) => ({ month: m, revenue: 0, invoiced: 0 }));
+
+  // Format expense data for pie chart
+  const expenseChartData = expenseBreakdown.length > 0
+    ? expenseBreakdown
+        .filter((e) => Number(e.total_amount) > 0)
+        .map((e, i) => ({
+          name: locale === "ar" ? e.category_name_ar : e.category_name,
+          value: Number(e.total_amount),
+          color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
+        }))
+    : [
+        { name: locale === "ar" ? "لا توجد بيانات" : "No data", value: 1, color: "#e2e8f0" },
+      ];
+
+  const rev = overview || {
+    total_revenue_mtd: 0,
+    total_revenue_ytd: 0,
+    total_expenses_mtd: 0,
+    total_expenses_ytd: 0,
+    net_profit_mtd: 0,
+    net_profit_ytd: 0,
+    total_outstanding: 0,
+    total_overdue: 0,
+  };
 
   return (
     <div className="space-y-6">
@@ -85,30 +97,26 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title={t("totalRevenue")}
-          value={formatCurrency(67000, "AED", locale === "ar" ? "ar-AE" : "en-AE")}
+          value={formatCurrency(Number(rev.total_revenue_mtd), "AED", localeStr)}
           icon={DollarSign}
-          trend={{ value: 12.5, isPositive: true }}
           variant="success"
         />
         <StatCard
           title={t("totalExpenses")}
-          value={formatCurrency(35000, "AED", locale === "ar" ? "ar-AE" : "en-AE")}
+          value={formatCurrency(Number(rev.total_expenses_mtd), "AED", localeStr)}
           icon={TrendingDown}
-          trend={{ value: 3.2, isPositive: false }}
           variant="danger"
         />
         <StatCard
           title={t("netProfit")}
-          value={formatCurrency(32000, "AED", locale === "ar" ? "ar-AE" : "en-AE")}
+          value={formatCurrency(Number(rev.net_profit_mtd), "AED", localeStr)}
           icon={TrendingUp}
-          trend={{ value: 8.1, isPositive: true }}
           variant="primary"
         />
         <StatCard
           title={t("outstanding")}
-          value={formatCurrency(29500, "AED", locale === "ar" ? "ar-AE" : "en-AE")}
+          value={formatCurrency(Number(rev.total_outstanding), "AED", localeStr)}
           icon={Clock}
-          trend={{ value: 5, isPositive: false }}
           variant="warning"
         />
       </div>
@@ -118,22 +126,31 @@ export default function DashboardPage() {
         {/* Revenue Chart */}
         <ChartWrapper title={t("revenueChart")} className="lg:col-span-2">
           <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
-                <XAxis dataKey="month" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                  }}
-                />
-                <Bar dataKey="revenue" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Revenue" />
-                <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name="Expenses" />
-              </BarChart>
-            </ResponsiveContainer>
+            {revenueChartData.some((d) => d.revenue > 0 || d.invoiced > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueChartData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                  <XAxis dataKey="month" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                    }}
+                  />
+                  <Bar dataKey="invoiced" fill="#93C5FD" radius={[4, 4, 0, 0]} name={locale === "ar" ? "الفواتير" : "Invoiced"} />
+                  <Bar dataKey="revenue" fill="#3B82F6" radius={[4, 4, 0, 0]} name={locale === "ar" ? "المحصّل" : "Collected"} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-slate-400">
+                <div className="text-center">
+                  <BarChart className="mx-auto h-12 w-12 mb-2 opacity-30" />
+                  <p className="text-sm">{locale === "ar" ? "لا توجد بيانات إيرادات بعد" : "No revenue data yet"}</p>
+                </div>
+              </div>
+            )}
           </div>
         </ChartWrapper>
 
@@ -143,7 +160,7 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={expenseBreakdown}
+                  data={expenseChartData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -151,7 +168,7 @@ export default function DashboardPage() {
                   paddingAngle={4}
                   dataKey="value"
                 >
-                  {expenseBreakdown.map((entry, index) => (
+                  {expenseChartData.map((entry, index) => (
                     <Cell key={index} fill={entry.color} />
                   ))}
                 </Pie>
@@ -159,7 +176,7 @@ export default function DashboardPage() {
               </PieChart>
             </ResponsiveContainer>
             <div className="mt-2 flex flex-wrap justify-center gap-3">
-              {expenseBreakdown.map((item) => (
+              {expenseChartData.map((item) => (
                 <div key={item.name} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                   {item.name}
@@ -172,121 +189,78 @@ export default function DashboardPage() {
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Recent Transactions */}
+        {/* Upcoming Subscriptions */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">{t("recentTransactions")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <RefreshCw className="h-4 w-4" />
+              {t("activeSubscriptions")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentTransactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-100 p-3 dark:border-slate-800"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                        tx.type === "income"
-                          ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                      }`}
-                    >
-                      {tx.type === "income" ? (
-                        <ArrowUpRight className="h-4 w-4" />
-                      ) : (
-                        <ArrowDownRight className="h-4 w-4" />
-                      )}
-                    </div>
+            {upcomingSubscriptions.length > 0 ? (
+              <div className="space-y-3">
+                {upcomingSubscriptions.map((sub, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 p-3 dark:border-slate-800">
                     <div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {tx.client}
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{sub.tool_name}</p>
+                      <p className="text-xs text-slate-500">
+                        {locale === "ar" ? "التجديد:" : "Renews:"} {sub.renewal_date}
+                        {sub.days_until_renewal != null && (
+                          <span className="ms-2 text-amber-500">
+                            ({sub.days_until_renewal} {locale === "ar" ? "يوم" : "days"})
+                          </span>
+                        )}
                       </p>
-                      <p className="text-xs text-slate-500">{tx.date}</p>
+                    </div>
+                    <div className="text-end">
+                      <p className="text-sm font-semibold">{formatCurrency(Number(sub.cost), sub.currency || "AED", localeStr)}</p>
+                      {sub.card_name && <p className="text-xs text-slate-400">{sub.card_name}</p>}
                     </div>
                   </div>
-                  <div className="text-end">
-                    <p
-                      className={`text-sm font-semibold ${
-                        tx.type === "income" ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {tx.type === "income" ? "+" : ""}
-                      {formatCurrency(tx.amount, "AED", locale === "ar" ? "ar-AE" : "en-AE")}
-                    </p>
-                    <Badge
-                      variant={tx.status === "paid" ? "default" : "secondary"}
-                      className="text-[10px]"
-                    >
-                      {tx.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400">
+                <RefreshCw className="mx-auto h-8 w-8 mb-2 opacity-30" />
+                <p className="text-sm">{locale === "ar" ? "لا توجد اشتراكات قادمة" : "No upcoming subscriptions"}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Upcoming & Overdue */}
-        <div className="space-y-6">
-          {/* Upcoming Payments */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t("upcomingPayments")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {upcomingPayments.map((payment, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
-                        {payment.name}
-                      </p>
-                      <p className="text-xs text-slate-500">{payment.dueDate}</p>
-                    </div>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">
-                      {formatCurrency(payment.amount, "AED", locale === "ar" ? "ar-AE" : "en-AE")}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Overdue */}
-          <Card className="border-red-200 dark:border-red-900/50">
-            <CardHeader>
-              <CardTitle className="text-base text-red-600 dark:text-red-400">
-                {t("overdue")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        {/* Overdue Payments */}
+        <Card className={overduePayments.length > 0 ? "border-red-200 dark:border-red-900/50" : ""}>
+          <CardHeader>
+            <CardTitle className={`flex items-center gap-2 text-base ${overduePayments.length > 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+              <AlertTriangle className="h-4 w-4" />
+              {t("overdue")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {overduePayments.length > 0 ? (
               <div className="space-y-3">
                 {overduePayments.map((payment, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between text-sm"
-                  >
+                  <div key={i} className="flex items-center justify-between text-sm">
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
-                        {payment.client}
-                      </p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">{payment.client_name || payment.client_company}</p>
                       <p className="text-xs text-red-500">
-                        {payment.daysOverdue} days overdue
+                        {payment.days_overdue} {locale === "ar" ? "يوم تأخير" : "days overdue"}
                       </p>
                     </div>
                     <span className="font-semibold text-red-600">
-                      {formatCurrency(payment.amount, "AED", locale === "ar" ? "ar-AE" : "en-AE")}
+                      {formatCurrency(Number(payment.amount_due), "AED", localeStr)}
                     </span>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <div className="py-8 text-center text-emerald-500">
+                <p className="text-sm">✅ {locale === "ar" ? "لا توجد مدفوعات متأخرة" : "No overdue payments"}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

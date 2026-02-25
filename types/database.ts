@@ -214,23 +214,22 @@ export interface Contract {
 // ── View Types ──────────────────────────────────
 
 export interface FinancialOverview {
-  total_revenue: number;
-  total_expenses: number;
-  net_profit: number;
-  outstanding_amount: number;
-  overdue_amount: number;
-  total_clients: number;
-  active_contracts: number;
-  active_subscriptions: number;
+  total_revenue_mtd: number;
+  total_revenue_ytd: number;
+  total_expenses_mtd: number;
+  total_expenses_ytd: number;
+  net_profit_mtd: number;
+  net_profit_ytd: number;
+  total_outstanding: number;
+  total_overdue: number;
 }
 
 export interface MonthlyRevenue {
-  month: string;
+  month: number;
   year: number;
-  revenue: number;
-  expenses: number;
-  profit: number;
-  invoice_count: number;
+  total_invoiced: number;
+  total_paid: number;
+  total_outstanding: number;
 }
 
 export interface ExpenseBreakdown {
@@ -243,33 +242,29 @@ export interface ExpenseBreakdown {
 }
 
 export interface UpcomingSubscription {
-  id: string;
-  name: string;
-  name_ar?: string;
-  provider: string;
-  amount: number;
+  tool_name: string;
+  cost: number;
   currency: string;
-  next_billing_date: string;
-  days_until_billing: number;
+  renewal_date: string;
+  days_until_renewal: number;
+  card_name: string | null;
 }
 
 export interface OverduePayment {
-  invoice_id: string;
   invoice_number: string;
   client_name: string;
-  total: number;
-  amount_paid: number;
-  amount_due: number;
+  client_company: string;
   due_date: string;
   days_overdue: number;
+  amount_due: number;
 }
 
 export interface ClientFinancialSummary {
   client_id: string;
   client_name: string;
-  total_invoiced: number;
+  company: string;
+  total_contracts: number;
+  total_billed: number;
   total_paid: number;
-  total_outstanding: number;
-  invoice_count: number;
-  last_payment_date?: string;
+  outstanding_balance: number;
 }

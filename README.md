@@ -60,7 +60,7 @@ Schema: [`database/financial-schema.sql`](database/financial-schema.sql)
 
 - [x] Phase 1: Database Schema ✅
 - [x] Phase 2: Next.js Project Setup ✅
-- [ ] Phase 3: Dashboard Layout + Home
+- [x] Phase 3: Dashboard Layout + Home ✅
 - [ ] Phase 4: CRUD Pages
 - [ ] Phase 5: Invoice Upload + OCR
 - [ ] Phase 6: Telegram Bot + Notifications
